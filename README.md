@@ -1,6 +1,6 @@
 # MediaPipe hand gesture recognition on Web using Flask API
 
-This project uses MediaPipe for hand gesture recognition and Flask for backend processing. It controls a robot by recognizing gestures from a camera feed.
+This project uses MediaPipe for hand gesture recognition and Flask for backend processing.
 
 ## Installation
 
