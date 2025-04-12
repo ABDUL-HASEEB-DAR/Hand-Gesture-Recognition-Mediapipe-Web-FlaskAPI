@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Hand Gesture Control</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <style>
+      body {
+        text-align: center;
+        background: #111;
+        color: #fff;
+      }
+      video,
+      canvas {
+        transform: scaleX(-1);
+        border: 1px solid white;
+      }
+      #output {
+        font-size: 24px;
+        font-weight: bold;
+        margin-top: 20px;
+      }
+      #gestures {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 20px;
+      }
+      .gesture-box {
+        width: 100px;
+        height: 100px;
+        margin: 10px;
+        border: 2px solid #444;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        transition: background-color 0.3s;
+      }
+      .active {
+        background-color: #00aa00;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Hand Gesture Controlled Robot v2.1</h1>
+    <video
+      id="video"
+      width="640"
+      height="480"
+      autoplay
+      muted
+      playsinline
+      style="display: none"
+    ></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
+    <div id="output">Waiting for gesture...</div>
+
+    <div id="gestures">
+      <div id="gesture-0" class="gesture-box">Open</div>
+      <div id="gesture-1" class="gesture-box">Close</div>
+      <div id="gesture-2" class="gesture-box">Pointer</div>
+      <div id="gesture-3" class="gesture-box">OK</div>
+      <div id="gesture-4" class="gesture-box">Peace</div>
+      <div id="gesture-5" class="gesture-box">Good</div>
+      <div id="gesture-6" class="gesture-box">Bad</div>
+      <div id="gesture-7" class="gesture-box">Evil</div>
+      <div id="gesture-8" class="gesture-box">ThumbsUp</div>
+      <div id="gesture-9" class="gesture-box">ThumbsDown</div>
+      <div id="gesture-10" class="gesture-box">Victory</div>
+      <div id="gesture-11" class="gesture-box">Rock</div>
+      <div id="gesture-12" class="gesture-box">Wave</div>
+      <div id="gesture-13" class="gesture-box">Fist</div>
+      <div id="gesture-14" class="gesture-box">Palm</div>
+      <div id="gesture-15" class="gesture-box">Heart</div>
+      <div id="gesture-16" class="gesture-box">Phone</div>
+      <div id="gesture-17" class="gesture-box">Gun</div>
+      <div id="gesture-18" class="gesture-box">Stop</div>
+      <div id="gesture-19" class="gesture-box">Writing</div>
+    </div>
+
+    <script>
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const outputDiv = document.getElementById("output");
+      const gestureBoxes = document.querySelectorAll(".gesture-box");
+
+      // Mapping of gesture names to their indices
+      const gestureMap = {
+        Open: 0,
+        Close: 1,
+        Pointer: 2,
+        OK: 3,
+        Peace: 4,
+        Good: 5,
+        Bad: 6,
+        Evil: 7,
+        ThumbsUp: 8,
+        ThumbsDown: 9,
+        Victory: 10,
+        Rock: 11,
+        Wave: 12,
+        Fist: 13,
+        Palm: 14,
+        Heart: 15,
+        Phone: 16,
+        Gun: 17,
+        Stop: 18,
+        Writing: 19,
+      };
+
+      const hands = new Hands({
+        locateFile: (file) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+      });
+
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7,
+      });
+
+      hands.onResults(onResults);
+
+      const camera = new Camera(video, {
+        onFrame: async () => {
+          await hands.send({ image: video });
+        },
+        width: 640,
+        height: 480,
+      });
+
+      camera.start();
+
+      function calcLandmarkList(image, landmarks) {
+        const imageWidth = image.width;
+        const imageHeight = image.height;
+
+        let landmarkPoints = [];
+
+        landmarks.forEach((landmark) => {
+          let landmarkX = Math.min(
+            Math.floor(landmark.x * imageWidth),
+            imageWidth - 1
+          );
+          let landmarkY = Math.min(
+            Math.floor(landmark.y * imageHeight),
+            imageHeight - 1
+          );
+          landmarkPoints.push([landmarkX, landmarkY]);
+        });
+
+        return landmarkPoints;
+      }
+
+      function preProcessLandmark(landmarkList) {
+        let tempLandmarkList = JSON.parse(JSON.stringify(landmarkList)); // Deep copy
+
+        // Convert to relative coordinates
+        let baseX = 0,
+          baseY = 0;
+        tempLandmarkList.forEach((landmark, index) => {
+          if (index === 0) {
+            baseX = landmark[0];
+            baseY = landmark[1];
+          }
+          tempLandmarkList[index][0] = landmark[0] - baseX;
+          tempLandmarkList[index][1] = landmark[1] - baseY;
+        });
+
+        // Flatten the array (convert 2D array to 1D)
+        tempLandmarkList = tempLandmarkList.flat();
+
+        // Normalize the coordinates
+        const maxValue = Math.max(...tempLandmarkList.map(Math.abs));
+
+        function normalize(n) {
+          return n / maxValue;
+        }
+
+        tempLandmarkList = tempLandmarkList.map(normalize);
+
+        return tempLandmarkList;
+      }
+
+      function updateGestureBoxes(prediction) {
+        document.querySelectorAll(".gesture-box").forEach((box) => {
+          box.classList.remove("active"); // Remove the active class from all boxes
+        });
+
+        // If a valid gesture prediction is returned, highlight it
+        if (prediction !== null) {
+          document
+            .getElementById(`gesture-${prediction}`)
+            .classList.add("active");
+        }
+      }
+
+      async function onResults(results) {
+        ctx.save();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+        if (
+          results.multiHandLandmarks &&
+          results.multiHandLandmarks.length > 0
+        ) {
+          const landmarks = results.multiHandLandmarks[0];
+
+          drawConnectors(ctx, landmarks, HAND_CONNECTIONS, {
+            color: "#0f0",
+            lineWidth: 2,
+          });
+          drawLandmarks(ctx, landmarks, { color: "#f00", lineWidth: 1 });
+
+          // Process landmarks
+          const landmarkList = calcLandmarkList(canvas, landmarks);
+          const processedLandmarks = preProcessLandmark(landmarkList);
+
+          try {
+            const response = await fetch("http://127.0.0.1:5000/predict", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                landmarks: processedLandmarks,
+              }),
+            });
+
+            const data = await response.json();
+            outputDiv.textContent = `Detected Gesture: ${data.prediction}`;
+            updateGestureBoxes(data.prediction);
+          } catch (err) {
+            outputDiv.textContent = `Error: ${err.message}`;
+            updateGestureBoxes(null);
+          }
+        } else {
+          outputDiv.textContent = "Waiting for gesture...";
+          updateGestureBoxes(null);
+        }
+
+        ctx.restore();
+      }
+    </script>
+  </body>
+</html>
