@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 import numpy as np
+import os
 from model.keypoint_classifier import KeyPointClassifier
 
 app = Flask(__name__)
@@ -27,9 +28,7 @@ def predict():
 
     try:
         result = classifier(landmarks)
-        # print(f"Result: {result}")
 
-        # 👇 This is key! Ensure it's a JSON-safe native type
         if isinstance(result, (np.integer, np.floating)):
             result = result.item()
         elif isinstance(result, np.ndarray):
@@ -40,6 +39,6 @@ def predict():
     except Exception as e:
         return jsonify({'error': f'Classifier error: {str(e)}'}), 500
 
-
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))  # default to 5000 if not set
+    app.run(host="0.0.0.0", port=port, debug=True)
