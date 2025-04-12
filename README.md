@@ -4,7 +4,12 @@ This project uses MediaPipe for hand gesture recognition and Flask for backend p
 
 ## Installation
 
-### Frontend
+### Frontend and Backend
+The frontend for this project is contained in the `index.html` file. This file handles the camera feed, integrates with MediaPipe for hand gesture detection, and displays the recognized gesture. You can open this file in your browser to interact with the hand gesture recognition system.
+
+For the full content of the frontend, refer to the `index.html` file in the project directory. 
+For backend follow steps below.
+
 1. Clone the repository:
    ```bash
    git clone <repository-url>
@@ -18,4 +23,14 @@ This project uses MediaPipe for hand gesture recognition and Flask for backend p
    ```bash
    python app.py
   The backend server will start at http://127.0.0.1:5000.
+
+## Available Gestures
+
+The following gestures are recognized by the system:
+
+- Open
+- Close
+- Pointer
+- OK
+- Peace
   
