@@ -8,19 +8,19 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <style>
       body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
         text-align: center;
-        background: #111;
-        color: #fff;
+        background: #ffffff;
+        color: #1f1f1f;
       }
       video,
       canvas {
         transform: scaleX(-1);
-        border: 1px solid white;
-      }
-      #output {
-        font-size: 24px;
-        font-weight: bold;
-        margin-top: 20px;
+        border-radius: 20px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       }
       #gestures {
         display: flex;
@@ -32,54 +32,54 @@
         width: 100px;
         height: 100px;
         margin: 10px;
-        border: 2px solid #444;
+        border: 2px solid #000000;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: bold;
         transition: background-color 0.3s;
+        border-radius: 10px;
       }
       .active {
         background-color: #00aa00;
         color: white;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        transform: scale(1.1) translateY(-5px);
+        transition: all 0.3s ease;
+      }
+      #main {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        width: 70%;
+        align-self: center;
       }
     </style>
   </head>
   <body>
     <h1>Hand Gesture Controlled Robot v2.1</h1>
-    <video
-      id="video"
-      width="640"
-      height="480"
-      autoplay
-      muted
-      playsinline
-      style="display: none"
-    ></video>
-    <canvas id="canvas" width="640" height="480"></canvas>
-    <div id="output">Waiting for gesture...</div>
+    <div id="main">
+      <div>
+        <video
+          id="video"
+          width="640"
+          height="480"
+          autoplay
+          muted
+          playsinline
+          style="display: none"
+        ></video>
+        <canvas id="canvas" width="640" height="480"></canvas>
+      </div>
 
-    <div id="gestures">
-      <div id="gesture-0" class="gesture-box">Open</div>
-      <div id="gesture-1" class="gesture-box">Close</div>
-      <div id="gesture-2" class="gesture-box">Pointer</div>
-      <div id="gesture-3" class="gesture-box">OK</div>
-      <div id="gesture-4" class="gesture-box">Peace</div>
-      <div id="gesture-5" class="gesture-box">Good</div>
-      <div id="gesture-6" class="gesture-box">Bad</div>
-      <div id="gesture-7" class="gesture-box">Evil</div>
-      <div id="gesture-8" class="gesture-box">ThumbsUp</div>
-      <div id="gesture-9" class="gesture-box">ThumbsDown</div>
-      <div id="gesture-10" class="gesture-box">Victory</div>
-      <div id="gesture-11" class="gesture-box">Rock</div>
-      <div id="gesture-12" class="gesture-box">Wave</div>
-      <div id="gesture-13" class="gesture-box">Fist</div>
-      <div id="gesture-14" class="gesture-box">Palm</div>
-      <div id="gesture-15" class="gesture-box">Heart</div>
-      <div id="gesture-16" class="gesture-box">Phone</div>
-      <div id="gesture-17" class="gesture-box">Gun</div>
-      <div id="gesture-18" class="gesture-box">Stop</div>
-      <div id="gesture-19" class="gesture-box">Writing</div>
+      <div id="gestures">
+        <div id="gesture-0" class="gesture-box">Open</div>
+        <div id="gesture-1" class="gesture-box">Close</div>
+        <div id="gesture-2" class="gesture-box">Pointer</div>
+        <div id="gesture-3" class="gesture-box">OK</div>
+        <div id="gesture-4" class="gesture-box">Peace</div>
+      </div>
     </div>
 
     <script>
@@ -96,21 +96,6 @@
         Pointer: 2,
         OK: 3,
         Peace: 4,
-        Good: 5,
-        Bad: 6,
-        Evil: 7,
-        ThumbsUp: 8,
-        ThumbsDown: 9,
-        Victory: 10,
-        Rock: 11,
-        Wave: 12,
-        Fist: 13,
-        Palm: 14,
-        Heart: 15,
-        Phone: 16,
-        Gun: 17,
-        Stop: 18,
-        Writing: 19,
       };
 
       const hands = new Hands({
@@ -232,14 +217,11 @@
             });
 
             const data = await response.json();
-            outputDiv.textContent = `Detected Gesture: ${data.prediction}`;
             updateGestureBoxes(data.prediction);
           } catch (err) {
-            outputDiv.textContent = `Error: ${err.message}`;
             updateGestureBoxes(null);
           }
         } else {
-          outputDiv.textContent = "Waiting for gesture...";
           updateGestureBoxes(null);
         }
 
