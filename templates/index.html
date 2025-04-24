@@ -6,6 +6,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
       body {
         display: flex;
@@ -83,11 +84,16 @@
     </div>
 
     <script>
+      const socket = io(
+        "https://hand-gesture-recognition-mediapipe-web.onrender.com/"
+      );
       const video = document.getElementById("video");
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
       const outputDiv = document.getElementById("output");
       const gestureBoxes = document.querySelectorAll(".gesture-box");
+      const username = prompt("Enter your username");
+      socket.emit("join", { username });
 
       // Mapping of gesture names to their indices
       const gestureMap = {
@@ -186,6 +192,21 @@
         }
       }
 
+      socket.on("gesture_result", (data) => {
+        console.log("Received message:", data);
+        if (data !== null) {
+          updateGestureBoxes(data.prediction);
+        } else {
+          updateGestureBoxes(null);
+        }
+      });
+
+      function sendMessage(landmark) {
+        if (landmark) {
+          socket.emit("gesture_data", { landmarks: landmark });
+        }
+      }
+
       async function onResults(results) {
         ctx.save();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -207,25 +228,7 @@
           const landmarkList = calcLandmarkList(canvas, landmarks);
           const processedLandmarks = preProcessLandmark(landmarkList);
 
-          try {
-            const response = await fetch(
-              "https://hand-gesture-recognition-mediapipe-web.onrender.com/predict",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  landmarks: processedLandmarks,
-                }),
-              }
-            );
-
-            const data = await response.json();
-            updateGestureBoxes(data.prediction);
-          } catch (err) {
-            updateGestureBoxes(null);
-          }
-        } else {
-          updateGestureBoxes(null);
+          sendMessage(processedLandmarks);
         }
 
         ctx.restore();
