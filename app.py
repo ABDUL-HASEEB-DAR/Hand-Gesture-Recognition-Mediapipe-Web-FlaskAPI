@@ -35,7 +35,7 @@ def on_disconnect():
 def on_join(data):
     username = data['username']
     connected_users[request.sid] = username
-    emit('message', {'user': 'System', 'text': f'{username} has joined the chat.'}, broadcast=True)
+    print(f"User {username} has joined. Current users: {connected_users}")
 
 
 # New event for gesture recognition via Socket.IO
@@ -58,6 +58,7 @@ def handle_gesture(data):
             
         # Broadcast the gesture to all users
         username = connected_users.get(request.sid, 'Unknown')
+        print('gesture detected and result is: {result}')
         emit('gesture_result', {
             'user': username,
             'prediction': result
