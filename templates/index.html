@@ -83,7 +83,9 @@
     </div>
 
     <script>
-      const socket = new WebSocket("ws://127.0.0.1:5000/ws"); // Replace with your actual backend URL
+      const socket = new WebSocket(
+        "ws://hand-gesture-recognition-mediapipe-web.onrender.com/ws"
+      ); // Replace with your actual backend URL
 
       const video = document.getElementById("video");
       const canvas = document.getElementById("canvas");
