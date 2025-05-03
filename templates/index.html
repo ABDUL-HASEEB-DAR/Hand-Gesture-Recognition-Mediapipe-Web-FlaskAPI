@@ -6,7 +6,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
       body {
         display: flex;
@@ -84,25 +83,86 @@
     </div>
 
     <script>
-      const socket = io(
-        "https://hand-gesture-recognition-mediapipe-web.onrender.com/"
-      );
+      const socket = new WebSocket("ws://127.0.0.1:5000/ws"); // Replace with your actual backend URL
+
       const video = document.getElementById("video");
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
-      const outputDiv = document.getElementById("output");
-      const gestureBoxes = document.querySelectorAll(".gesture-box");
-      const username = prompt("Enter your username");
-      socket.emit("join", { username });
 
-      // Mapping of gesture names to their indices
-      const gestureMap = {
-        Open: 0,
-        Close: 1,
-        Pointer: 2,
-        OK: 3,
-        Peace: 4,
-      };
+      const username = prompt("Enter your username") || "Unknown";
+
+      socket.addEventListener("open", () => {
+        socket.send(JSON.stringify({ type: "join", username }));
+      });
+
+      socket.addEventListener("message", (event) => {
+        const data = JSON.parse(event.data);
+        if (data && typeof data.prediction !== "undefined") {
+          updateGestureBoxes(data.prediction);
+        }
+      });
+
+      const gestureBoxes = document.querySelectorAll(".gesture-box");
+
+      function updateGestureBoxes(prediction) {
+        gestureBoxes.forEach((box) => box.classList.remove("active"));
+        if (prediction !== null && prediction >= 0 && prediction <= 4) {
+          const box = document.getElementById(`gesture-${prediction}`);
+          if (box) box.classList.add("active");
+        }
+      }
+
+      function calcLandmarkList(image, landmarks) {
+        const imageWidth = image.width;
+        const imageHeight = image.height;
+        return landmarks.map((lm) => [
+          Math.min(Math.floor(lm.x * imageWidth), imageWidth - 1),
+          Math.min(Math.floor(lm.y * imageHeight), imageHeight - 1),
+        ]);
+      }
+
+      function preProcessLandmark(landmarkList) {
+        let baseX = landmarkList[0][0];
+        let baseY = landmarkList[0][1];
+
+        let relCoords = landmarkList
+          .map(([x, y]) => [x - baseX, y - baseY])
+          .flat();
+        const maxVal = Math.max(...relCoords.map(Math.abs)) || 1;
+        return relCoords.map((v) => v / maxVal);
+      }
+
+      function sendMessage(landmark) {
+        if (socket.readyState === WebSocket.OPEN && landmark) {
+          socket.send(JSON.stringify({ type: "gesture", landmarks: landmark }));
+        }
+      }
+
+      async function onResults(results) {
+        ctx.save();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+        if (
+          results.multiHandLandmarks &&
+          results.multiHandLandmarks.length > 0
+        ) {
+          const landmarks = results.multiHandLandmarks[0];
+          drawConnectors(ctx, landmarks, HAND_CONNECTIONS, {
+            color: "#0f0",
+            lineWidth: 2,
+          });
+          drawLandmarks(ctx, landmarks, { color: "#f00", lineWidth: 1 });
+
+          const landmarkList = calcLandmarkList(canvas, landmarks);
+          const processed = preProcessLandmark(landmarkList);
+          sendMessage(processed);
+        } else {
+          updateGestureBoxes(null);
+        }
+
+        ctx.restore();
+      }
 
       const hands = new Hands({
         locateFile: (file) =>
@@ -119,120 +179,12 @@
       hands.onResults(onResults);
 
       const camera = new Camera(video, {
-        onFrame: async () => {
-          await hands.send({ image: video });
-        },
+        onFrame: async () => await hands.send({ image: video }),
         width: 640,
         height: 480,
       });
 
       camera.start();
-
-      function calcLandmarkList(image, landmarks) {
-        const imageWidth = image.width;
-        const imageHeight = image.height;
-
-        let landmarkPoints = [];
-
-        landmarks.forEach((landmark) => {
-          let landmarkX = Math.min(
-            Math.floor(landmark.x * imageWidth),
-            imageWidth - 1
-          );
-          let landmarkY = Math.min(
-            Math.floor(landmark.y * imageHeight),
-            imageHeight - 1
-          );
-          landmarkPoints.push([landmarkX, landmarkY]);
-        });
-
-        return landmarkPoints;
-      }
-
-      function preProcessLandmark(landmarkList) {
-        let tempLandmarkList = JSON.parse(JSON.stringify(landmarkList)); // Deep copy
-
-        // Convert to relative coordinates
-        let baseX = 0,
-          baseY = 0;
-        tempLandmarkList.forEach((landmark, index) => {
-          if (index === 0) {
-            baseX = landmark[0];
-            baseY = landmark[1];
-          }
-          tempLandmarkList[index][0] = landmark[0] - baseX;
-          tempLandmarkList[index][1] = landmark[1] - baseY;
-        });
-
-        // Flatten the array (convert 2D array to 1D)
-        tempLandmarkList = tempLandmarkList.flat();
-
-        // Normalize the coordinates
-        const maxValue = Math.max(...tempLandmarkList.map(Math.abs));
-
-        function normalize(n) {
-          return n / maxValue;
-        }
-
-        tempLandmarkList = tempLandmarkList.map(normalize);
-
-        return tempLandmarkList;
-      }
-
-      function updateGestureBoxes(prediction) {
-        document.querySelectorAll(".gesture-box").forEach((box) => {
-          box.classList.remove("active"); // Remove the active class from all boxes
-        });
-
-        // If a valid gesture prediction is returned, highlight it
-        if (prediction !== null) {
-          document
-            .getElementById(`gesture-${prediction}`)
-            .classList.add("active");
-        }
-      }
-
-      socket.on("gesture_result", (data) => {
-        console.log("Received message:", data);
-        if (data !== null) {
-          updateGestureBoxes(data.prediction);
-        } else {
-          updateGestureBoxes(null);
-        }
-      });
-
-      function sendMessage(landmark) {
-        if (landmark) {
-          socket.emit("gesture_data", { landmarks: landmark });
-        }
-      }
-
-      async function onResults(results) {
-        ctx.save();
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-
-        if (
-          results.multiHandLandmarks &&
-          results.multiHandLandmarks.length > 0
-        ) {
-          const landmarks = results.multiHandLandmarks[0];
-
-          drawConnectors(ctx, landmarks, HAND_CONNECTIONS, {
-            color: "#0f0",
-            lineWidth: 2,
-          });
-          drawLandmarks(ctx, landmarks, { color: "#f00", lineWidth: 1 });
-
-          // Process landmarks
-          const landmarkList = calcLandmarkList(canvas, landmarks);
-          const processedLandmarks = preProcessLandmark(landmarkList);
-
-          sendMessage(processedLandmarks);
-        }
-
-        ctx.restore();
-      }
     </script>
   </body>
 </html>

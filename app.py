@@ -1,71 +1,72 @@
 import eventlet
 eventlet.monkey_patch()
+
 from flask import Flask, request, jsonify, render_template
+from flask_sock import Sock
 import numpy as np
-import os
+import json
 from model.keypoint_classifier import KeyPointClassifier
 
-from flask_socketio import SocketIO, emit, join_room, leave_room
-
 app = Flask(__name__)
+sock = Sock(app)
 app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Initialize the classifier
 classifier = KeyPointClassifier('model/keypoint_classifier.tflite')
 
-# Socket.IO user tracking
-connected_users = {}  # sid: username mapping
+# Track connected clients (you can use set or dict for advanced tracking)
+connected_clients = set()
 
 @app.route("/")
 def home():
-    return render_template("index.html")  # serves your web app
+    return render_template("index.html")
 
-# Socket.IO event handlers
-@socketio.on('connect')
-def on_connect():
-    print(f"Client connected: {request.sid}")
+@sock.route('/ws')
+def websocket_handler(ws):
+    print("Client connected")
+    connected_clients.add(ws)
 
-@socketio.on('disconnect')
-def on_disconnect():
-    username = connected_users.pop(request.sid, 'Unknown')
-    print(f"{username} disconnected")
-
-@socketio.on('join')
-def on_join(data):
-    username = data['username']
-    connected_users[request.sid] = username
-    print(f"User {username} has joined. Current users: {connected_users}")
-
-
-# New event for gesture recognition via Socket.IO
-@socketio.on('gesture_data')
-def handle_gesture(data):
     try:
-        landmarks = data.get('landmarks', None)
-        
-        
-        if landmarks is None or not isinstance(landmarks, list):
-            emit('gesture_result', {'error': 'Invalid landmark data'})
-            return
-            
-        result = classifier(landmarks)
-        
-        if isinstance(result, (np.integer, np.floating)):
-            result = result.item()
-        elif isinstance(result, np.ndarray):
-            result = result.tolist()
-            
-        # Broadcast the gesture to all users
-        username = connected_users.get(request.sid, 'Unknown')
-        print(f'gesture detected and result is: {result}')
-        emit('gesture_result', {
-            'user': username,
-            'prediction': result
-        }, broadcast=True)
-        
-    except Exception as e:
-        emit('gesture_result', {'error': f'Classifier error: {str(e)}'})
+        while True:
+            message = ws.receive()
+            if message is None:
+                break  # client disconnected
+
+            try:
+                data = json.loads(message)
+
+                if data.get("type") == "join":
+                    username = data.get("username", "Unknown")
+                    print(f"{username} joined.")
+                    continue
+
+                if data.get("type") == "gesture":
+                    landmarks = data.get("landmarks")
+                    if landmarks is None:
+                        ws.send(json.dumps({'error': 'Missing landmark data'}))
+                        continue
+
+                    result = classifier(landmarks)
+
+                    if isinstance(result, (np.integer, np.floating)):
+                        result = result.item()
+                    elif isinstance(result, np.ndarray):
+                        result = result.tolist()
+
+                    payload = json.dumps({'prediction': result})
+                    for client in connected_clients.copy():
+                        try:
+                            client.send(payload)
+                        except Exception:
+                            connected_clients.discard(client)
+
+            except Exception as e:
+                ws.send(json.dumps({'error': f'Error: {str(e)}'}))
+
+    finally:
+        print("Client disconnected")
+        connected_clients.discard(ws)
+
 
 if __name__ == "__main__":
-    socketio.run(app, host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000)
