@@ -58,7 +58,7 @@ def handle_gesture(data):
             
         # Broadcast the gesture to all users
         username = connected_users.get(request.sid, 'Unknown')
-        print('gesture detected and result is: {result}')
+        print(f'gesture detected and result is: {result}')
         emit('gesture_result', {
             'user': username,
             'prediction': result
