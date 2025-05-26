@@ -45,6 +45,10 @@ def websocket_handler(ws):
                     }))
                     continue
 
+                if data.get("type") == "voice":
+                    command = data.get("command")
+                    payload = json.dumps({'command': command})
+
                 if data.get("type") == "gesture":
                     landmarks = data.get("landmarks")
                     if landmarks is None:
