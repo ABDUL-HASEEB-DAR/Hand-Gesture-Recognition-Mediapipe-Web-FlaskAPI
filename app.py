@@ -36,18 +36,26 @@ def websocket_handler(ws):
                 data = json.loads(message)
 
                 if data.get("type") == "join":
-                    username = data.get("username", "Unknown")
+                    username = data.get("username")
                     print(f"{username} joined.")
                     ws.send(json.dumps({
                         'type': 'join_ack',
                         'message': f'Welcome {username}!',
                         'status': 'success'
                     }))
-                    continue
 
                 if data.get("type") == "voice":
                     command = data.get("command")
-                    payload = json.dumps({'command': command})
+                    print(f"Received voice command: {command}")
+                    payload = json.dumps({'prediction': command})
+
+                    for client in connected_clients.copy():
+                        try:
+                            client.send(payload)
+                        except Exception:
+                            connected_clients.discard(client)
+
+                    
 
                 if data.get("type") == "gesture":
                     landmarks = data.get("landmarks")
@@ -61,7 +69,7 @@ def websocket_handler(ws):
                         result = result.item()
                     elif isinstance(result, np.ndarray):
                         result = result.tolist()
-
+                    print(f"Predicted class: {result}")
                     payload = json.dumps({'prediction': result})
                     for client in connected_clients.copy():
                         try:
