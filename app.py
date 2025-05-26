@@ -38,6 +38,11 @@ def websocket_handler(ws):
                 if data.get("type") == "join":
                     username = data.get("username", "Unknown")
                     print(f"{username} joined.")
+                    ws.send(json.dumps({
+                        'type': 'join_ack',
+                        'message': f'Welcome {username}!',
+                        'status': 'success'
+                    }))
                     continue
 
                 if data.get("type") == "gesture":

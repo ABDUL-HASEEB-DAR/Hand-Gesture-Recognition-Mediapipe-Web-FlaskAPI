@@ -8,89 +8,155 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <style>
       body {
+        font-family: Arial, sans-serif;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-direction: column;
         text-align: center;
-        background: #ffffff;
-        color: #1f1f1f;
+        background: #292929;
+        color: #000000;
+        padding: 20px;
       }
       video,
       canvas {
         transform: scaleX(-1);
         border-radius: 20px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 4px 12px rgba(212, 212, 212, 0.651);
+        margin: 10px;
       }
       #gestures {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        margin-top: 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        width: 90%;
+        max-width: 800px;
       }
       .gesture-box {
-        width: 100px;
         height: 100px;
-        margin: 10px;
-        border: 2px solid #000000;
+        border: 2px solid #d8d8d8;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
         font-weight: bold;
-        transition: background-color 0.3s;
+        transition: all 0.3s ease;
         border-radius: 10px;
+        background: white;
+      }
+      .gesture-box span {
+        font-size: 1.5em;
       }
       .active {
-        background-color: #00aa00;
-        color: white;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        transform: scale(1.1) translateY(-5px);
-        transition: all 0.3s ease;
+        background-color: #98ff98;
+        color: rgb(0, 0, 0);
+        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.4);
+        transform: scale(1.1);
       }
       #main {
         display: flex;
         flex-direction: row;
         align-items: center;
         justify-content: center;
-        width: 70%;
-        align-self: center;
+      }
+      .heading {
+        color: #ffffff;
+      }
+      p {
+        margin: 0;
       }
     </style>
   </head>
   <body>
-    <h1>Hand Gesture Controlled Robot ws 1.1</h1>
+    <h1 class="heading">Gesture-Controlled Robot v1.2</h1>
     <div id="main">
-      <div>
-        <video
-          id="video"
-          width="640"
-          height="480"
-          autoplay
-          muted
-          playsinline
-          style="display: none"
-        ></video>
-        <canvas id="canvas" width="640" height="480"></canvas>
-      </div>
-
+      <video
+        id="video"
+        width="640"
+        height="480"
+        autoplay
+        muted
+        playsinline
+        style="display: none"
+      ></video>
+      <canvas id="canvas" width="640" height="480"></canvas>
       <div id="gestures">
-        <div id="gesture-0" class="gesture-box">Open</div>
-        <div id="gesture-1" class="gesture-box">Close</div>
-        <div id="gesture-2" class="gesture-box">Pointer</div>
-        <div id="gesture-3" class="gesture-box">OK</div>
-        <div id="gesture-4" class="gesture-box">Peace</div>
+        <div id="gesture-0" class="gesture-box">
+          <span>🖐</span>
+          <div>Open</div>
+          <p>Move Forward</p>
+        </div>
+        <div id="gesture-1" class="gesture-box">
+          <span>✊</span>
+          <div>Close</div>
+          <p>Move Backward</p>
+        </div>
+        <div id="gesture-2" class="gesture-box">
+          <span>👆</span>
+          <div>Pointer</div>
+          <p>Rotate</p>
+        </div>
+        <div id="gesture-3" class="gesture-box">
+          <span>👉</span>
+          <div>Point Right</div>
+          <p>Move Right</p>
+        </div>
+        <div id="gesture-4" class="gesture-box">
+          <span>👈</span>
+          <div>Point Left</div>
+          <p>Move Left</p>
+        </div>
+        <div id="gesture-5" class="gesture-box">
+          <span>👍</span>
+          <div>Thumbs Up</div>
+          <p>Elbow Up</p>
+        </div>
+        <div id="gesture-6" class="gesture-box">
+          <span>👎</span>
+          <div>Thumbs Down</div>
+          <p>Elbow Down</p>
+        </div>
+        <div id="gesture-7" class="gesture-box">
+          <span>🤏</span>
+          <div>Pinch Open</div>
+          <p>Claw Open</p>
+        </div>
+        <div id="gesture-8" class="gesture-box">
+          <span>🤏</span>
+          <div>Pinch Close</div>
+          <p>Claw Close</p>
+        </div>
+        <div id="gesture-9" class="gesture-box">
+          <span>✌</span>
+          <div>Peace</div>
+          <p>Base Rotate Left</p>
+        </div>
+        <div id="gesture-10" class="gesture-box">
+          <span>🤘</span>
+          <div>Rock</div>
+          <p>Base Rotate Right</p>
+        </div>
+        <div id="gesture-11" class="gesture-box">
+          <span>👆</span>
+          <div>2-fingers point-up</div>
+          <p>Shoulder Up</p>
+        </div>
+        <div id="gesture-12" class="gesture-box">
+          <span>👇</span>
+          <div>2-fingers point-down</div>
+          <p>Shoulder Down</p>
+        </div>
       </div>
     </div>
 
     <script>
-      const socket = new WebSocket(
-        "wss://hand-gesture-recognition-mediapipe-web.onrender.com/ws"
-      ); // Replace with your actual backend URL
-
+      const socket = new WebSocket("ws://127.0.0.1:5000/ws");
+      // const socket = new WebSocket(
+      //   "wss://hand-gesture-recognition-mediapipe-web.onrender.com/ws"
+      // );
       const video = document.getElementById("video");
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
-
       const username = prompt("Enter your username") || "Unknown";
 
       socket.addEventListener("open", () => {
@@ -105,10 +171,13 @@
       });
 
       const gestureBoxes = document.querySelectorAll(".gesture-box");
-
       function updateGestureBoxes(prediction) {
         gestureBoxes.forEach((box) => box.classList.remove("active"));
-        if (prediction !== null && prediction >= 0 && prediction <= 4) {
+        if (
+          prediction !== null &&
+          prediction >= 0 &&
+          prediction < gestureBoxes.length
+        ) {
           const box = document.getElementById(`gesture-${prediction}`);
           if (box) box.classList.add("active");
         }
@@ -126,7 +195,6 @@
       function preProcessLandmark(landmarkList) {
         let baseX = landmarkList[0][0];
         let baseY = landmarkList[0][1];
-
         let relCoords = landmarkList
           .map(([x, y]) => [x - baseX, y - baseY])
           .flat();
@@ -144,7 +212,6 @@
         ctx.save();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-
         if (
           results.multiHandLandmarks &&
           results.multiHandLandmarks.length > 0
@@ -162,7 +229,6 @@
         } else {
           updateGestureBoxes(null);
         }
-
         ctx.restore();
       }
 
